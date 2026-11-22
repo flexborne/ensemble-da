@@ -1,6 +1,6 @@
 {
   "environment": {
-    "timestamp_utc": "2026-11-22T20:50:50+00:00",
+    "timestamp_utc": "2026-11-22T22:55:31+00:00",
     "python": "3.12.4",
     "implementation": "CPython",
     "os": "Darwin 23.0.0",
@@ -34,7 +34,7 @@
       "threadpoolctl": []
     },
     "thread_env": {},
-    "git_commit": "09d792c075e152a41dbbbcccf92be8d0ed6e4566"
+    "git_commit": "9f9a1865cb4f08cf5e66a174c4da96e67f88226b"
   },
   "summary": {
     "max_abs_error": 4.5396686410015263e-11,
