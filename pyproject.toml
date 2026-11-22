@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ensemble-da"
+version = "0.1.0"
+description = "Model-independent ensemble Kalman filter and smoother analysis with covariance localization"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Alexander" }]
+keywords = ["data assimilation", "ensemble Kalman filter", "ensemble smoother", "localization"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+
+[project.urls]
+Repository = "https://github.com/flexborne/ensemble-da"
+
+[project.optional-dependencies]
+test = ["pytest"]
+plot = ["matplotlib"]
+bench = ["threadpoolctl"]
+
+[project.scripts]
+ensemble-da = "ensemble_da.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ensemble_da*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

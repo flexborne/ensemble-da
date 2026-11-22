@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "ensemble-da: model-independent ensemble Kalman filter and smoother analysis"
+abstract: >-
+  Python package for the analysis step of ensemble data assimilation: an ensemble Kalman
+  filter and smoother with distance-based covariance localization, solved in observation space.
+  It takes a forecast ensemble, observations, an observation operator and observation errors,
+  and returns the analysis ensemble; forecast models are coupled through a function interface.
+authors:
+  - family-names: Alexander
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/flexborne/ensemble-da"
+type: software
+keywords:
+  - data assimilation
+  - ensemble Kalman filter
+  - ensemble smoother
+  - covariance localization
