@@ -28,10 +28,13 @@ def _cmd_assimilate(args) -> int:
         result = assimilate(data['forecast'], data['observations'], H, data['observation_covariance'],
                             localization=data['localization'] if 'localization' in data else None,
                             transform=args.transform, perturb=not args.no_perturb, rng=args.seed)
-    out = Path(args.output).with_suffix('.npz')
-    np.savez(out, analysis=result.analysis)
-    out.with_suffix('.json').write_text(json.dumps(result.diagnostics, indent=2))
-    print(f'analysis written to {out} (diagnostics: {out.with_suffix(".json")})')
+    base = Path(args.output.removesuffix('.npz').removesuffix('.json'))
+    npz, js = base.parent / f'{base.name}.npz', base.parent / f'{base.name}.json'
+    if npz.resolve() == Path(args.input).resolve():
+        raise ValueError(f'output {npz} would overwrite the input')
+    np.savez(npz, analysis=result.analysis)
+    js.write_text(json.dumps(result.diagnostics, indent=2))
+    print(f'analysis written to {npz} (diagnostics: {js})')
     return 0
 
 
@@ -53,7 +56,7 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)
-    except (ValueError, KeyError, FileNotFoundError) as exc:
+    except (ValueError, KeyError, OSError, np.linalg.LinAlgError) as exc:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 

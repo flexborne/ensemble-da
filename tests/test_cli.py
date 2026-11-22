@@ -10,27 +10,44 @@ import numpy as np
 from ensemble_da import assimilate, cli
 
 
-def _write_case(path, operator_key='observation_indices'):
+def _write_case(path, operator=False):
     rng = np.random.default_rng(0)
-    Xf = rng.standard_normal((10, 6))
+    Xf = np.exp(0.2 * rng.standard_normal((10, 6)))
     H = np.array([1, 5, 8])
-    arrays = {'forecast': Xf, 'observations': Xf.mean(axis=1)[H] + 0.2, 'observation_covariance': 0.1 * np.eye(3),
-              operator_key: H if operator_key == 'observation_indices' else np.eye(10)[H]}
+    arrays = {'forecast': Xf, 'observations': Xf.mean(axis=1)[H] * 1.1, 'observation_covariance': 0.01 * np.eye(3)}
+    if operator:                                    # averages of two neighbouring components
+        arrays['observation_operator'] = 0.5 * (np.eye(10)[H] + np.eye(10)[H + 1])
+        arrays['localization'] = np.exp(-np.abs(np.subtract.outer(np.arange(10), np.arange(10))) / 3.0)
+    else:
+        arrays['observation_indices'] = H
     np.savez(path, **arrays)
-    return Xf, arrays['observations'], H
+    return arrays
 
 
 def test_assimilate_command_matches_the_api(tmp_path):
-    Xf, y, H = _write_case(tmp_path / 'case.npz')
+    a = _write_case(tmp_path / 'case.npz')
     assert cli.main(['assimilate', str(tmp_path / 'case.npz'), '-o', str(tmp_path / 'out'), '--no-perturb']) == 0
-    expected = assimilate(Xf, y, H, 0.1 * np.eye(3), perturb=False)
+    expected = assimilate(a['forecast'], a['observations'], a['observation_indices'], a['observation_covariance'], perturb=False)
     assert np.allclose(np.load(tmp_path / 'out.npz')['analysis'], expected.analysis)
     assert json.loads((tmp_path / 'out.json').read_text())['n_obs'] == 3
 
 
-def test_matrix_operator_input(tmp_path):
-    _write_case(tmp_path / 'case.npz', operator_key='observation_operator')
-    assert cli.main(['assimilate', str(tmp_path / 'case.npz'), '-o', str(tmp_path / 'out'), '--seed', '1']) == 0
+def test_operator_localization_transform_and_seed_reach_the_api(tmp_path):
+    a = _write_case(tmp_path / 'case.npz', operator=True)
+    assert cli.main(['assimilate', str(tmp_path / 'case.npz'), '-o', str(tmp_path / 'out'),
+                     '--transform', 'log', '--seed', '3']) == 0
+    expected = assimilate(a['forecast'], a['observations'], a['observation_operator'], a['observation_covariance'],
+                          localization=a['localization'], transform='log', rng=3)
+    assert np.allclose(np.load(tmp_path / 'out.npz')['analysis'], expected.analysis)
+
+
+def test_dotted_output_names_stay_distinct_and_the_input_is_protected(tmp_path):
+    _write_case(tmp_path / 'case.npz')
+    for name in ('member.1', 'member.2'):
+        assert cli.main(['assimilate', str(tmp_path / 'case.npz'), '-o', str(tmp_path / name)]) == 0
+    assert (tmp_path / 'member.1.npz').exists() and (tmp_path / 'member.2.npz').exists()
+    assert cli.main(['assimilate', str(tmp_path / 'case.npz'), '-o', str(tmp_path / 'case')]) == 1
+    assert 'forecast' in np.load(tmp_path / 'case.npz')
 
 
 def test_missing_operator_is_a_clean_error(tmp_path, capsys):

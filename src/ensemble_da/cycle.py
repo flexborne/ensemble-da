@@ -38,7 +38,7 @@ class CycleResult:
 def derive_windows(times, window):
     """0-based inclusive (first, last) indices of the times lying within +/- window of each time."""
     t = np.asarray(times, dtype=float)
-    tol = 1e-9
+    tol = 1e-9 + 16 * np.spacing(np.abs(t).max())     # holds for large time values too
     first = [int(np.flatnonzero(t >= ti - window - tol)[0]) for ti in t]
     last = [int(np.flatnonzero(t <= ti + window + tol)[-1]) for ti in t]
     return first, last
@@ -103,7 +103,7 @@ def run_cycle(forecast, initial_ensemble, times, observations, *, mode='filter',
         raise ValueError(f'observations given at times outside the cycle: {sorted(unknown)}')
     plan = plan_cycle(mode, times, window)
     rng = np.random.default_rng(rng)
-    states = {times[0]: np.asarray(initial_ensemble, dtype=float)}
+    states = {times[0]: np.array(initial_ensemble, dtype=float)}   # stored states are always copies
     analyses, records = {}, []
     for i, step in enumerate(plan):
         if step.kind == 'analyze':
@@ -115,7 +115,7 @@ def run_cycle(forecast, initial_ensemble, times, observations, *, mode='filter',
                             'diagnostics': res.diagnostics})
         else:
             start = analyses[step.source] if step.restart == 'analysis' else states[step.source]
-            out = np.asarray(forecast(start, step.source, step.time), dtype=float)
+            out = np.array(forecast(start.copy(), step.source, step.time), dtype=float)
             if out.shape != start.shape:
                 raise ValueError(f'forecast returned shape {out.shape}, expected {start.shape}')
             states[step.time] = out

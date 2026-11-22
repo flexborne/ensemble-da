@@ -4,7 +4,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ensemble_da import Observations, derive_windows, observation_covariance, plan_cycle, run_cycle
+from ensemble_da import (Localization, Observations, assimilate_window, derive_windows, observation_covariance,
+                         plan_cycle, run_cycle)
 
 
 def _kinds(plan):
@@ -15,6 +16,11 @@ def test_derive_windows():
     first, last = derive_windows([0.0, 0.75, 1.5, 1.75, 1.875, 2.0, 2.1, 4.0], 0.25)
     assert first == [0, 1, 2, 2, 3, 3, 4, 7]
     assert last == [0, 1, 3, 5, 6, 6, 6, 7]
+
+
+def test_derive_windows_with_large_time_values():
+    times = 1.7e9 + 0.1 * np.arange(5)                    # e.g. epoch seconds with sub-second steps
+    assert derive_windows(times, 0.1) == ([0, 0, 1, 2, 3], [1, 2, 3, 4, 4])
 
 
 def test_filter_and_noda_plans():
@@ -64,8 +70,42 @@ def test_filter_analyses_every_time_but_the_last(linear_case):
     out = run_cycle(forecast, initial, times, obs, mode='filter', rng=1)
     assert set(out.analyses) == {0.0, 1.0, 2.0}
     assert np.allclose(out.forecasts[1.0], forecast(out.analyses[0.0], 0.0, 1.0))
-    assert all('innovation_rms' in s for s in out.steps if s['step'] == 'forecast')
     assert [s['id'] for s in out.steps] == list(range(len(out.steps)))
+    step = next(s for s in out.steps if s['step'] == 'forecast' and s['time'] == 3.0)
+    o = obs[3.0]
+    expected = np.sqrt(np.mean((o.values - out.forecasts[3.0].mean(axis=1)[o.indices]) ** 2))
+    assert step['innovation_rms'] == pytest.approx(expected)
+
+
+def test_filter_cycle_equals_manual_steps_with_one_generator():
+    """transform, localization (with decoupled components) and the shared generator reach every step."""
+    rng = np.random.default_rng(2)
+    n, M, times = 10, 8, [0.0, 1.0, 2.0]
+    initial = np.exp(0.3 * rng.standard_normal((n, M)))
+    H = np.array([0, 3, 7])
+    obs = {t: Observations(np.exp(rng.standard_normal(3)), H, observation_covariance(0.2, n_obs=3)) for t in times}
+    loc = Localization(horizontal=np.arange(n)[:, None], horizontal_radius=3.0, decoupled=np.arange(n) == 5)
+    forecast = lambda ens, t0, t1: ens * 1.1                            # noqa: E731
+    out = run_cycle(forecast, initial, times, obs, mode='filter', localization=loc, transform='log', rng=5)
+
+    g, state = np.random.default_rng(5), initial
+    for t, nxt in zip(times, times[1:]):
+        analysis = assimilate_window([state], [obs[t]], [t], localization=loc, transform='log', rng=g).analysis
+        assert np.array_equal(out.analyses[t], analysis)
+        state = forecast(analysis, t, nxt)
+
+
+def test_a_model_that_works_in_place_cannot_corrupt_stored_states(linear_case):
+    forecast, initial, times, obs = linear_case
+    def in_place(ens, t0, t1):
+        ens *= 0.9
+        ens += 0.1 * (t1 - t0)
+        return ens
+    keep = initial.copy()
+    a = run_cycle(in_place, initial, times, obs, mode='smoother', window=1.0, perturb=False)
+    b = run_cycle(forecast, initial, times, obs, mode='smoother', window=1.0, perturb=False)
+    assert np.array_equal(initial, keep)
+    assert all(np.allclose(a.analyses[t], b.analyses[t]) for t in b.analyses)
 
 
 def test_cycle_is_reproducible_with_a_seed(linear_case):

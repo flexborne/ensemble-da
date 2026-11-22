@@ -20,6 +20,7 @@ def analysis_update(B, H, Y, R, Xf):
         Xa = Xf + B H^T (H B H^T + R)^-1 (Y - H Xf),
     computed with one Cholesky factorization of the p x p innovation covariance. B may be
     singular (an unlocalized ensemble covariance); the increment then lies in the range of B.
+    The relative accuracy of the increment is about machine epsilon times cond(H B H^T + R).
 
     B  : (n, n) background covariance, symmetric positive semi-definite.
     H  : (p,) integer indices of the observed state components, or a (p, n) matrix.
@@ -33,13 +34,16 @@ def analysis_update(B, H, Y, R, Xf):
     Y = np.asarray(Y, dtype=float)
     Xf = Xf.reshape(-1, 1) if Xf.ndim == 1 else Xf
     Y = Y.reshape(-1, 1) if Y.ndim == 1 else Y
+    n, p = Xf.shape[0], Y.shape[0]
+    if R.shape != (p, p):                            # a vector R would broadcast silently
+        raise ValueError(f'observation covariance must be ({p}, {p}), got {R.shape}')
     H = np.asarray(H)
     if H.ndim == 1:                                  # selection: observation k sees component H[k]
-        H = H.astype(int)
+        if H.size and (not np.issubdtype(H.dtype, np.integer) or H.min() < 0 or H.max() >= n):
+            raise ValueError(f'observation indices must be integers in 0..{n - 1}')
         BHt = B[:, H]
         S = B[np.ix_(H, H)] + R
     else:                                            # general linear observation operator
-        H = H.astype(float)
         BHt = B @ H.T
         S = H @ BHt + R
     Xa = Xf + BHt @ cho_solve(cho_factor(S, lower=True), Y - apply_operator(H, Xf))

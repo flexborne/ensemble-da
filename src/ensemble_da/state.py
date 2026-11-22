@@ -30,7 +30,7 @@ def build_window_state(ensembles, observed) -> WindowState:
     Earlier times contribute one row per distinct observed component; the target time contributes
     the full state. Observations are ordered by time, as given. A one-time window is the filter.
     """
-    if len(ensembles) != len(observed) or not ensembles:
+    if len(ensembles) != len(observed) or len(ensembles) == 0:
         raise ValueError('need one observed-index array per ensemble, and at least one time')
     ensembles = [np.asarray(e, dtype=float) for e in ensembles]
     n, M = ensembles[-1].shape

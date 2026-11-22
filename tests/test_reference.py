@@ -42,4 +42,5 @@ def test_update_matches_independent_reference(n, p, M, localized, correlated_R, 
 def test_degenerate_ensemble_covariance_is_handled():
     B, H, Y, R, Xf = random_problem(100, 20, 6, seed=7)
     assert np.linalg.matrix_rank(B) == 5                    # M - 1, far below n
-    assert np.allclose(analysis_update(B, H, Y, R, Xf), reference_analysis(B, H, Y, R, Xf), atol=1e-9)
+    reference = reference_analysis(B, H, Y, R, Xf)
+    assert np.abs(analysis_update(B, H, Y, R, Xf) - reference).max() <= 1e-9 * np.abs(reference - Xf).max()

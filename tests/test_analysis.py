@@ -9,6 +9,11 @@ from conftest import random_problem
 from ensemble_da import analysis_update, estimate_covariance
 
 
+def test_sample_covariance_matches_numpy():
+    X = np.random.default_rng(0).standard_normal((7, 5))
+    assert np.allclose(estimate_covariance(X), np.cov(X))      # 1/(M-1) normalization
+
+
 def test_scalar_gaussian_update_matches_closed_form():
     B = np.array([[4.0, 1.0], [1.0, 2.0]])
     H = np.array([0])

@@ -15,10 +15,10 @@ def to_log(X, what='values') -> np.ndarray:
 
 
 def from_log(Z, what='values') -> np.ndarray:
-    """exp back to physical space, rejecting overflow to infinity."""
+    """exp back to physical space, rejecting overflow to infinity and underflow to zero."""
     X = np.exp(np.asarray(Z, dtype=float))
-    bad = ~np.isfinite(X)
+    bad = ~(np.isfinite(X) & (X > 0))
     if np.any(bad):
         where = tuple(int(i) for i in np.argwhere(bad)[0])
-        raise FloatingPointError(f'{what} overflow exp at {where}')
+        raise FloatingPointError(f'{what} is not representable as a positive number at {where}: exp gives {X[where]}')
     return X
