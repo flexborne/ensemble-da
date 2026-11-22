@@ -46,12 +46,12 @@ def _blas():
 
 
 def _git_commit():
-    """HEAD commit, suffixed '-dirty' when tracked files have uncommitted changes."""
+    """HEAD commit, suffixed '-dirty' when tracked files other than results have uncommitted changes."""
     here = Path(__file__).resolve().parent
     try:
         head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=here, capture_output=True, text=True, check=True).stdout.strip()
-        dirty = subprocess.run(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=here,
-                               capture_output=True, text=True, check=True).stdout.strip()
+        dirty = subprocess.run(['git', 'status', '--porcelain', '--untracked-files=no', '--', ':/', ':!/benchmarks/results'],
+                               cwd=here, capture_output=True, text=True, check=True).stdout.strip()
         return head + ('-dirty' if dirty else '')
     except (OSError, subprocess.SubprocessError):
         return None
