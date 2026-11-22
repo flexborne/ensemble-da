@@ -8,11 +8,18 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ['3.11', '3.12', '3.13']
+        include:
+          - os: macos-latest
+            python-version: '3.12'
+          - os: ubuntu-latest                 # the oldest supported NumPy / SciPy
+            python-version: '3.11'
+            pins: 'numpy==1.24.* scipy==1.10.*'
     steps:
       - uses: actions/checkout@v4
 
@@ -24,22 +31,24 @@ jobs:
       - name: Install package with test extras
         run: |
           python -m pip install --upgrade pip
-          pip install ".[test]"
+          pip install ".[test]" ${{ matrix.pins }}
+          python -c "import numpy, scipy; print('numpy', numpy.__version__, 'scipy', scipy.__version__)"
 
       - name: Run tests
         run: pytest -q -rs
 
-      - name: Run the example and the independent-reference verification
+      - name: Example, independent-reference verification (fails above tolerance), benchmark smoke run
         run: |
           python examples/demo_transport_1d.py
-          python benchmarks/verify_reference.py --out /tmp/verification
+          python benchmarks/verify_reference.py --out "$RUNNER_TEMP/verification"
+          python benchmarks/benchmark_analysis.py --quick --repeats 3 --out "$RUNNER_TEMP/benchmark"
 
       - name: Build wheel and smoke-test it in a clean environment
         run: |
           pip install build
           python -m build --wheel -o dist .
-          python -m venv /tmp/smoke
-          /tmp/smoke/bin/pip install dist/*.whl
-          cd /tmp
-          /tmp/smoke/bin/ensemble-da --version
-          /tmp/smoke/bin/python -c "import ensemble_da; print(ensemble_da.__version__)"
+          python -m venv "$RUNNER_TEMP/smoke"
+          "$RUNNER_TEMP/smoke/bin/pip" install dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/smoke/bin/ensemble-da" --version
+          "$RUNNER_TEMP/smoke/bin/python" -c "import numpy as np, ensemble_da as e; r = e.assimilate(np.eye(3)[:, :2] + 1, [1.5], [0], [[0.1]], perturb=False); print(r.analysis.shape)"
