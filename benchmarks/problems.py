@@ -33,16 +33,16 @@ def _random_fields(n, size, rng):
     return g / g.std()
 
 
-def make_problem(n, p, M, seed, *, localized=True, correlated_R=False) -> Problem:
+def make_problem(n, p, M, seed, *, localized=True, correlated_R=False, obs_variance=0.01) -> Problem:
     rng = np.random.default_rng(seed)
     fields = _random_fields(n, M + 1, rng)
     truth, Xf = fields[:, 0], 0.5 * fields[:, 1:]
     H = np.sort(rng.choice(n, size=p, replace=False))
     if correlated_R:
         A = rng.standard_normal((p, p))
-        R = 0.01 * (A @ A.T) / p + 0.01 * np.eye(p)
+        R = obs_variance * ((A @ A.T) / p + np.eye(p))
     else:
-        R = 0.01 * np.eye(p)
+        R = obs_variance * np.eye(p)
     y = truth[H] + np.linalg.cholesky(R) @ rng.standard_normal(p)
     Y = y[:, None] + np.linalg.cholesky(R) @ rng.standard_normal((p, M))
     coords = ((np.arange(n) + 0.5) / n)[:, None]
