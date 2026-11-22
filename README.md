@@ -138,11 +138,13 @@ python benchmarks/benchmark_analysis.py        # timing; see benchmarks/README.m
   noda/filter/smoother cycles; `--seeds N` summarizes the error ratios over N seeds. The toy model
   lives in `examples/`, outside the package.
 - **Independent reference** ([benchmarks/verify_reference.py](benchmarks/verify_reference.py)):
-  the production solver against state-space weighted least squares on 384 problems, including
+  the production solver against state-space weighted least squares on 384 filter problems and 288
+  smoother windows (the reduced window state against the full multi-time state), including
   rank-deficient ensemble covariances (fails above a tolerance), plus a conditioning slice.
 - **Benchmarks** ([benchmarks/benchmark_analysis.py](benchmarks/benchmark_analysis.py)): stage
   timings of the observation-space solver against two state-space solvers of the same problem
-  (Cholesky and least squares), with the environment recorded; raw results in
+  (Cholesky and least squares), for filter steps and smoother windows, with the environment
+  recorded; raw results in
   [benchmarks/results/](benchmarks/results/).
 
 ## Package layout

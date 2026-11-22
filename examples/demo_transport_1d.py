@@ -106,12 +106,17 @@ def matched_mean(rmse_by_time) -> float:
 def ratios(res) -> dict:
     """Error ratios that summarize one experiment (< 1 means the first method is better)."""
     s, c = res['single_analysis'], res['cycle']
+    f = {mode: matched_mean(c[mode]['forecast_rmse']) for mode in ('noda', 'filter', 'smoother')}
+    a = {mode: matched_mean(c[mode]['analysis_rmse']) for mode in ('filter', 'smoother')}
     return {
         'analysis / forecast (one analysis)': s['analysis_rmse_localized'] / s['forecast_rmse'],
         'localized / unlocalized analysis': s['analysis_rmse_localized'] / s['analysis_rmse_unlocalized'],
-        'filter / free-run forecast': matched_mean(c['filter']['forecast_rmse']) / matched_mean(c['noda']['forecast_rmse']),
-        'filter analysis / its forecast': matched_mean(c['filter']['analysis_rmse']) / matched_mean(c['filter']['forecast_rmse']),
-        'smoother / filter analysis': matched_mean(c['smoother']['analysis_rmse']) / matched_mean(c['filter']['analysis_rmse']),
+        'filter / free-run forecast': f['filter'] / f['noda'],
+        'smoother / free-run forecast': f['smoother'] / f['noda'],
+        'filter analysis / its forecast': a['filter'] / f['filter'],
+        'smoother analysis / its forecast': a['smoother'] / f['smoother'],
+        'smoother / filter forecast': f['smoother'] / f['filter'],
+        'smoother / filter analysis': a['smoother'] / a['filter'],
     }
 
 

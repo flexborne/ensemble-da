@@ -20,11 +20,13 @@ def test_localization_beats_the_raw_ensemble_covariance(summary):
     assert s['below_1'] == s['seeds'] and s['median'] < 0.7
 
 
-def test_cycling_beats_the_free_run_and_analyses_beat_their_forecasts(summary):
-    assert summary['filter / free-run forecast']['median'] < 0.3
-    assert summary['filter analysis / its forecast']['median'] < 0.9
+@pytest.mark.parametrize('mode', ['filter', 'smoother'])
+def test_cycling_beats_the_free_run_and_analyses_beat_their_forecasts(summary, mode):
+    assert summary[f'{mode} / free-run forecast']['median'] < 0.3
+    assert summary[f'{mode} analysis / its forecast']['median'] < 0.9
 
 
-def test_smoother_beats_the_filter_on_average(summary):
-    s = summary['smoother / filter analysis']
+@pytest.mark.parametrize('kind', ['forecast', 'analysis'])
+def test_smoother_beats_the_filter_on_average(summary, kind):
+    s = summary[f'smoother / filter {kind}']
     assert s['median'] < 0.95 and s['below_1'] >= 8

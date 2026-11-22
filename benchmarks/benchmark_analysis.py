@@ -7,8 +7,10 @@ Three solvers on identical, seeded inputs:
 The state-space solvers are re-implementations of those formulations, not measurements of any
 other program. state_cholesky is the fair baseline; state_lstsq is the verification reference.
 
-Stages timed separately: covariance estimation, localization (factors + Schur product), solve
-(per solver), full analysis (covariance + localization + solve, per solver).
+Configurations: filter steps (one time, state size n) and smoother windows (K times; the reduced
+window state of N = n + earlier observed components, temporal localization). Stages timed
+separately: covariance estimation, localization (factors + Schur product), solve (per solver), full
+analysis (covariance + localization + solve, per solver).
 
     python benchmarks/benchmark_analysis.py [--threads 1] [--repeats 30] [--warmup 3] [--quick] [--out PATH]
 
@@ -53,13 +55,17 @@ import numpy as np  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baselines import state_space_cholesky  # noqa: E402
 from environment import environment  # noqa: E402
-from problems import CORR_LENGTH, LOCALIZATION_RADIUS, background_covariance, make_problem  # noqa: E402
+from problems import (CORR_LENGTH, LOCALIZATION_RADIUS, TIME_RADIUS, TIME_STEP, background_covariance,  # noqa: E402
+                      make_problem, make_window_problem, window_state_problem)
 
 from ensemble_da import analysis_update, estimate_covariance, reference_analysis  # noqa: E402
 
-CONFIGS = [  # (n, p, M)
+FILTER_CONFIGS = [  # (n, p, M)
     (80, 8, 24), (160, 16, 24), (160, 32, 24), (320, 32, 24), (640, 64, 24),
     (320, 32, 12), (320, 32, 48), (320, 32, 96),      # ensemble-size sweep
+]
+SMOOTHER_CONFIGS = [  # (n, p per window time, M, K)
+    (320, 32, 24, 2), (320, 32, 24, 3), (640, 64, 24, 3),
 ]
 SOLVERS = {'obs_cholesky': analysis_update, 'state_cholesky': state_space_cholesky, 'state_lstsq': reference_analysis}
 SAMPLE_SECONDS = 0.005
@@ -107,8 +113,7 @@ def _measure(fns, repeats, warmup):
     return stats
 
 
-def run_config(n, p, M, args):
-    prob = make_problem(n, p, M, args.seed)
+def run_config(prob, args):
     args_of = lambda B: (B, prob.H, prob.Y, prob.R, prob.Xf)  # noqa: E731
     C = estimate_covariance(prob.Xf)
     B = background_covariance(prob)
@@ -116,7 +121,7 @@ def run_config(n, p, M, args):
     ref = analyses['obs_cholesky']
 
     fns = {'covariance/shared': lambda: estimate_covariance(prob.Xf),
-           'localization/shared': lambda: C * prob.localization.matrix()}
+           'localization/shared': lambda: C * prob.localization.matrix(*prob.rows)}
     for name, solve in SOLVERS.items():
         fns[f'solve/{name}'] = lambda solve=solve: solve(*args_of(B))
         fns[f'full/{name}'] = lambda solve=solve: solve(*args_of(background_covariance(prob)))
@@ -124,7 +129,16 @@ def run_config(n, p, M, args):
     speedup = {stage: {name: timings[f'{stage}/{name}']['median_s'] / timings[f'{stage}/obs_cholesky']['median_s']
                        for name in ('state_cholesky', 'state_lstsq')} for stage in ('solve', 'full')}
     max_abs_diff = {name: float(np.abs(a - ref).max()) for name, a in analyses.items() if name != 'obs_cholesky'}
-    return {'n': n, 'p': p, 'M': M, 'timings': timings, 'speedup_median': speedup, 'max_abs_diff': max_abs_diff}
+    return {'timings': timings, 'speedup_median': speedup, 'max_abs_diff': max_abs_diff}
+
+
+def configs(quick, seed):
+    """(labels, problem) per timed configuration: filter steps, then smoother windows."""
+    for n, p, M in ([(80, 8, 24)] if quick else FILTER_CONFIGS):
+        yield {'mode': 'filter', 'n': n, 'K': 1, 'p': p, 'M': M}, make_problem(n, p, M, seed)
+    for n, p, M, K in ([(80, 8, 24, 2)] if quick else SMOOTHER_CONFIGS):
+        yield ({'mode': 'smoother', 'n': n, 'K': K, 'p': p * K, 'M': M},
+               window_state_problem(make_window_problem(n, p, M, K, seed), seed))
 
 
 def main():
@@ -132,17 +146,21 @@ def main():
     out = Path(args.out) if args.out else Path(__file__).resolve().parent / 'results' / 'benchmark'
     env = environment()
     results = []
-    for n, p, M in ([(80, 8, 24)] if args.quick else CONFIGS):
-        r = run_config(n, p, M, args)
+    for labels, prob in configs(args.quick, args.seed):
+        r = {**labels, 'N': int(prob.Xf.shape[0]), **run_config(prob, args)}
         results.append(r)
         t, s = r['timings'], r['speedup_median']
-        print(f"n={n:4d} p={p:3d} M={M:3d}  solve obs {t['solve/obs_cholesky']['median_s'] * 1e3:7.3f} ms"
+        print(f"{r['mode']:<8} n={r['n']:4d} K={r['K']} N={r['N']:4d} p={r['p']:3d} M={r['M']:3d}  "
+              f"solve obs {t['solve/obs_cholesky']['median_s'] * 1e3:7.3f} ms"
               f"  vs state_cholesky x{s['solve']['state_cholesky']:5.1f}, state_lstsq x{s['solve']['state_lstsq']:6.1f}"
               f"  | full x{s['full']['state_cholesky']:4.1f} / x{s['full']['state_lstsq']:5.1f}"
               f"  | max|diff| {max(r['max_abs_diff'].values()):.1e}")
 
     protocol = {'problem': f'smooth Gaussian random-field ensemble, correlation length {CORR_LENGTH}; '
                            f'distinct random observed components; R = 0.01 I',
+                'smoother': f'K window times {TIME_STEP} apart, members correlated across times; p observations per '
+                            f'time with error variance 0.01 (k + 1) at time k; reduced window state of N rows; '
+                            f'temporal localization exp(-|t_i - t_j| / {TIME_RADIUS})',
                 'localization': f'exp(-|x_i - x_j| / {LOCALIZATION_RADIUS}) on [0, 1)',
                 'seed': args.seed, 'threads': args.threads, 'repeats': args.repeats, 'warmup': args.warmup,
                 'timer': f'time.perf_counter; stages interleaved; each sample averages calls lasting >= '
@@ -152,12 +170,13 @@ def main():
     out.with_suffix('.json').write_text(json.dumps({'environment': env, 'protocol': protocol, 'results': results}, indent=2))
     with open(out.with_suffix('.csv'), 'w', newline='') as fh:
         w = csv.writer(fh)
-        w.writerow(['n', 'p', 'M', 'stage', 'method', 'median_s', 'p25_s', 'p75_s', 'min_s', 'max_s', 'repeats',
-                    'calls_per_sample', 'cpu_wall_ratio'])
+        w.writerow(['mode', 'n', 'K', 'N', 'p', 'M', 'stage', 'method', 'median_s', 'p25_s', 'p75_s', 'min_s',
+                    'max_s', 'repeats', 'calls_per_sample', 'cpu_wall_ratio'])
         for r in results:
             for key, s in r['timings'].items():
                 stage, method = key.split('/')
-                w.writerow([r['n'], r['p'], r['M'], stage, method, s['median_s'], s['p25_s'], s['p75_s'],
+                w.writerow([r['mode'], r['n'], r['K'], r['N'], r['p'], r['M'], stage, method, s['median_s'], s['p25_s'],
+                            s['p75_s'],
                             s['min_s'], s['max_s'], s['repeats'], s['calls_per_sample'], s['cpu_wall_ratio']])
     print(f'written {out.with_suffix(".json")} and {out.with_suffix(".csv")}')
 
