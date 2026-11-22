@@ -6,17 +6,15 @@ cycles receive the model as a callable.
 
     from ensemble_da import assimilate, Localization, observation_covariance
 """
-from __future__ import annotations
+from .analysis import analysis_update
+from .assimilate import AssimilationResult, assimilate, assimilate_window
+from .covariance import Localization, estimate_covariance, great_circle_distance
+from .cycle import CycleResult, CycleStep, derive_windows, plan_cycle, run_cycle
+from .observations import Observations, observation_covariance, perturbed_observations
+from .reference import reference_analysis
+from .state import WindowState, build_window_state
 
 __version__ = '0.1.0'
-
-from .analysis import analysis_update  # noqa: E402
-from .assimilate import AssimilationResult, assimilate, assimilate_window  # noqa: E402
-from .covariance import Localization, estimate_covariance, great_circle_distance  # noqa: E402
-from .cycle import CycleResult, CycleStep, derive_windows, plan_cycle, run_cycle  # noqa: E402
-from .observations import Observations, observation_covariance, perturbed_observations  # noqa: E402
-from .reference import reference_analysis  # noqa: E402
-from .state import WindowState, build_window_state  # noqa: E402
 
 __all__ = [
     '__version__',

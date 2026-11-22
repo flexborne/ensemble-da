@@ -46,7 +46,4 @@ def analysis_update(B, H, Y, R, Xf):
     else:                                            # general linear observation operator
         BHt = B @ H.T
         S = H @ BHt + R
-    Xa = Xf + BHt @ cho_solve(cho_factor(S, lower=True), Y - apply_operator(H, Xf))
-    if not np.all(np.isfinite(Xa)):
-        raise FloatingPointError('analysis_update produced non-finite values')
-    return Xa
+    return Xf + BHt @ cho_solve(cho_factor(S, lower=True), Y - apply_operator(H, Xf))

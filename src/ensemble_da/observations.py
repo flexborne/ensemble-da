@@ -13,15 +13,8 @@ def observation_covariance(measurement_std, representativeness_std=0.0, n_obs=No
     per observation (arrays of length p) or as scalars broadcast to `n_obs` observations.
     For a log-transformed analysis the standard deviations are in log space (e.g. ln GSD).
     """
-    m = np.asarray(measurement_std, dtype=float)
-    r = np.asarray(representativeness_std, dtype=float)
-    if not (np.all(np.isfinite(m) & (m >= 0)) and np.all(np.isfinite(r) & (r >= 0))):
-        raise ValueError('error standard deviations must be finite and non-negative')
-    var = m ** 2 + r ** 2
-    var = np.broadcast_to(var, (n_obs,)) if n_obs is not None else np.atleast_1d(var)
-    if np.any(var <= 0):
-        raise ValueError('every observation needs a positive total error variance')
-    return np.diag(var.astype(float))
+    var = np.asarray(measurement_std, dtype=float) ** 2 + np.asarray(representativeness_std, dtype=float) ** 2
+    return np.diag(np.broadcast_to(var, (n_obs,)) if n_obs is not None else np.atleast_1d(var))
 
 
 def perturbed_observations(y, R, n_members, rng) -> np.ndarray:

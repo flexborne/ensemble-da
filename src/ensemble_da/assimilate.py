@@ -1,7 +1,7 @@
 """High-level analysis step on plain arrays: forecast ensemble + observations -> analysis ensemble."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 from scipy.linalg import block_diag
@@ -10,7 +10,6 @@ from .analysis import analysis_update, apply_operator
 from .covariance import Localization, estimate_covariance
 from .observations import perturbed_observations
 from .state import build_window_state
-from .transform import from_log, to_log
 
 TRANSFORMS = ('none', 'log')
 
@@ -20,7 +19,15 @@ class AssimilationResult:
     """Analysis ensemble (n, M) in the input space, plus diagnostics in the analysis space."""
 
     analysis: np.ndarray
-    diagnostics: dict = field(default_factory=dict)
+    diagnostics: dict
+
+
+def _log(X) -> np.ndarray:
+    """Natural log of a positive, log-normally distributed quantity."""
+    X = np.asarray(X, dtype=float)
+    if not np.all(np.isfinite(X) & (X > 0)):
+        raise ValueError("transform='log' needs finite positive forecast and observation values")
+    return np.log(X)
 
 
 def _rms(v) -> float:
@@ -58,15 +65,13 @@ def assimilate(forecast_ensemble, observations, observation_operator, observatio
     if transform not in TRANSFORMS:
         raise ValueError(f'transform must be one of {TRANSFORMS} (got {transform!r})')
     Xf = np.asarray(forecast_ensemble, dtype=float)
-    if Xf.ndim != 2 or Xf.shape[1] < 2:
-        raise ValueError(f'forecast_ensemble must be (n, M) with M >= 2, got shape {Xf.shape}')
     y = np.asarray(observations, dtype=float).ravel()
     H = np.asarray(observation_operator)
-    Zf = to_log(Xf, 'forecast') if transform == 'log' else Xf
+    Zf = _log(Xf) if transform == 'log' else Xf
     if y.size == 0:                                   # nothing to assimilate
         return AssimilationResult(analysis=Xf.copy(), diagnostics=_diagnostics(Zf, Zf, y, H))
 
-    z = to_log(y, 'observations') if transform == 'log' else y
+    z = _log(y) if transform == 'log' else y
     B = estimate_covariance(Zf)
     if localization is not None:
         B = B * (localization.matrix() if isinstance(localization, Localization) else np.asarray(localization))
@@ -74,7 +79,7 @@ def assimilate(forecast_ensemble, observations, observation_operator, observatio
     M = Xf.shape[1]
     Y = perturbed_observations(z, R, M, np.random.default_rng(rng)) if perturb else np.repeat(z[:, None], M, axis=1)
     Za = analysis_update(B, H, Y, R, Zf)
-    Xa = from_log(Za, 'analysis') if transform == 'log' else Za
+    Xa = np.exp(Za) if transform == 'log' else Za
     return AssimilationResult(analysis=Xa, diagnostics=_diagnostics(Zf, Za, z, H))
 
 

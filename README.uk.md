@@ -150,12 +150,11 @@ python benchmarks/benchmark_analysis.py        # заміри часу; див. 
 
 | Модуль | Вміст |
 |---|---|
-| `assimilate.py` | `assimilate`, `assimilate_window`, `AssimilationResult` — публічний етап аналізу |
+| `assimilate.py` | `assimilate`, `assimilate_window`, `AssimilationResult` — публічний етап аналізу з необов'язковим log-перетворенням |
 | `analysis.py` | `analysis_update` — оновлення Калмана у просторі спостережень (Холецький) |
 | `covariance.py` | `estimate_covariance`, `Localization`, `great_circle_distance` |
 | `observations.py` | `observation_covariance`, `perturbed_observations`, `Observations` |
 | `state.py` | `build_window_state` — скорочений багаточасовий стан вікна згладжувача |
-| `transform.py` | захищені log / exp для логнормальних величин |
 | `cycle.py` | `plan_cycle`, `run_cycle` — послідовний цикл із переданою функцією прогнозу |
 | `reference.py` | `reference_analysis` — незалежний розв'язувач у просторі стану для верифікації |
 | `cli.py` | `ensemble-da assimilate` |

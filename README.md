@@ -149,12 +149,11 @@ python benchmarks/benchmark_analysis.py        # timing; see benchmarks/README.m
 
 | Module | Contents |
 |---|---|
-| `assimilate.py` | `assimilate`, `assimilate_window`, `AssimilationResult` — the public analysis step |
+| `assimilate.py` | `assimilate`, `assimilate_window`, `AssimilationResult` — the public analysis step, with the optional log transform |
 | `analysis.py` | `analysis_update` — observation-space Kalman update (Cholesky) |
 | `covariance.py` | `estimate_covariance`, `Localization`, `great_circle_distance` |
 | `observations.py` | `observation_covariance`, `perturbed_observations`, `Observations` |
 | `state.py` | `build_window_state` — reduced multi-time state of a smoother window |
-| `transform.py` | guarded log / exp for log-normal quantities |
 | `cycle.py` | `plan_cycle`, `run_cycle` — sequential cycle with an injected forecast function |
 | `reference.py` | `reference_analysis` — independent state-space solver for verification |
 | `cli.py` | `ensemble-da assimilate` |

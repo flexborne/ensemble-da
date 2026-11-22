@@ -22,7 +22,6 @@ class Problem:
     H: np.ndarray           # (p,) observed components
     Y: np.ndarray           # (p, M) perturbed observations
     R: np.ndarray           # (p, p) observation-error covariance
-    coords: np.ndarray      # (n, 1) positions, for localization
     localization: Localization | None
 
 
@@ -47,7 +46,7 @@ def make_problem(n, p, M, seed, *, localized=True, correlated_R=False, obs_varia
     Y = y[:, None] + np.linalg.cholesky(R) @ rng.standard_normal((p, M))
     coords = ((np.arange(n) + 0.5) / n)[:, None]
     loc = Localization(horizontal=coords, horizontal_radius=LOCALIZATION_RADIUS) if localized else None
-    return Problem(Xf=Xf, H=H, Y=Y, R=R, coords=coords, localization=loc)
+    return Problem(Xf=Xf, H=H, Y=Y, R=R, localization=loc)
 
 
 def background_covariance(problem: Problem) -> np.ndarray:

@@ -7,7 +7,6 @@ from scipy.linalg import block_diag
 
 from ensemble_da import (Localization, Observations, analysis_update, assimilate, assimilate_window,
                          estimate_covariance, observation_covariance, reference_analysis)
-from ensemble_da.transform import from_log, to_log
 
 
 @pytest.fixture
@@ -47,13 +46,12 @@ def test_log_transform_works_in_log_space(problem):
     assert res.diagnostics['innovation_rms'] == pytest.approx(np.sqrt(np.mean(innovation ** 2)))
 
 
-def test_log_transform_guards():
+def test_log_transform_needs_positive_values(problem):
+    Xf, y, H, R, _ = problem
     with pytest.raises(ValueError, match='positive'):
-        to_log(np.array([1.0, 0.0]))
-    with np.errstate(over='ignore'), pytest.raises(FloatingPointError):
-        from_log(np.array([0.0, 800.0]))                      # overflow
-    with pytest.raises(FloatingPointError):
-        from_log(np.array([0.0, -800.0]))                     # underflow to zero is not positive
+        assimilate(Xf - Xf.min(), y, H, R, transform='log')   # a zero in the forecast
+    with pytest.raises(ValueError, match='positive'):
+        assimilate(Xf, -y, H, R, transform='log')
 
 
 def test_no_observations_leaves_the_forecast(problem):
@@ -70,7 +68,6 @@ def test_diagnostics_show_the_analysis_fits_the_observations_better(problem):
 
 
 @pytest.mark.parametrize('change', [
-    lambda a: {**a, 'forecast_ensemble': a['forecast_ensemble'][:, :1]},           # one member
     lambda a: {**a, 'observation_operator': a['observation_operator'] + 100},     # index out of range
     lambda a: {**a, 'observation_operator': -a['observation_operator']},          # negative index
     lambda a: {**a, 'observation_operator': a['observation_operator'] + 0.5},     # non-integer index

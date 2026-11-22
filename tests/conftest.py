@@ -6,13 +6,13 @@ from pathlib import Path
 
 import numpy as np
 
+from ensemble_da import Localization, estimate_covariance
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'examples'))
 
 
 def random_problem(n, p, M, seed, *, localized=False, correlated_R=False, matrix_H=False):
     """A random analysis problem (B, H, Y, R, Xf) with a smooth ensemble and optional extras."""
-    from ensemble_da import Localization, estimate_covariance
-
     rng = np.random.default_rng(seed)
     Xf = np.cumsum(rng.standard_normal((n, M)), axis=0) / np.sqrt(n)    # spatially correlated members
     B = estimate_covariance(Xf)

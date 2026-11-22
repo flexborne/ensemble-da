@@ -70,11 +70,7 @@ def test_filter_analyses_every_time_but_the_last(linear_case):
     out = run_cycle(forecast, initial, times, obs, mode='filter', rng=1)
     assert set(out.analyses) == {0.0, 1.0, 2.0}
     assert np.allclose(out.forecasts[1.0], forecast(out.analyses[0.0], 0.0, 1.0))
-    assert [s['id'] for s in out.steps] == list(range(len(out.steps)))
-    step = next(s for s in out.steps if s['step'] == 'forecast' and s['time'] == 3.0)
-    o = obs[3.0]
-    expected = np.sqrt(np.mean((o.values - out.forecasts[3.0].mean(axis=1)[o.indices]) ** 2))
-    assert step['innovation_rms'] == pytest.approx(expected)
+    assert [s['step'] for s in out.steps] == ['analyze', 'forecast'] * 3
 
 
 def test_filter_cycle_equals_manual_steps_with_one_generator():

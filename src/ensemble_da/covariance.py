@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.spatial.distance import cdist
 
 EARTH_RADIUS_M = 6_371_000.0
 METRICS = ('euclidean', 'great_circle')
@@ -23,11 +24,6 @@ def great_circle_distance(a, b) -> np.ndarray:
     dlon = b[None, :, 1] - a[:, None, 1]
     h = np.sin(dlat / 2) ** 2 + np.cos(a[:, None, 0]) * np.cos(b[None, :, 0]) * np.sin(dlon / 2) ** 2
     return 2.0 * EARTH_RADIUS_M * np.arcsin(np.sqrt(np.clip(h, 0.0, 1.0)))
-
-
-def _euclidean_distance(x) -> np.ndarray:
-    x = np.asarray(x, dtype=float).reshape(len(x), -1)
-    return np.sqrt(((x[:, None, :] - x[None, :, :]) ** 2).sum(axis=-1))
 
 
 @dataclass(frozen=True, eq=False)
@@ -75,8 +71,8 @@ class Localization:
         k = comp.size
         exponent = np.zeros((k, k))
         if self.horizontal is not None and self.horizontal_radius:
-            pos = np.asarray(self.horizontal, dtype=float)[comp]
-            dist = great_circle_distance(pos, pos) if self.metric == 'great_circle' else _euclidean_distance(pos)
+            pos = np.asarray(self.horizontal, dtype=float)[comp].reshape(k, -1)
+            dist = great_circle_distance(pos, pos) if self.metric == 'great_circle' else cdist(pos, pos)
             exponent += dist / self.horizontal_radius
         if self.vertical is not None and self.vertical_radius:
             z = np.asarray(self.vertical, dtype=float)[comp]

@@ -53,7 +53,7 @@ import numpy as np  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baselines import state_space_cholesky  # noqa: E402
 from environment import environment  # noqa: E402
-from problems import CORR_LENGTH, LOCALIZATION_RADIUS, make_problem  # noqa: E402
+from problems import CORR_LENGTH, LOCALIZATION_RADIUS, background_covariance, make_problem  # noqa: E402
 
 from ensemble_da import analysis_update, estimate_covariance, reference_analysis  # noqa: E402
 
@@ -111,7 +111,7 @@ def run_config(n, p, M, args):
     prob = make_problem(n, p, M, args.seed)
     args_of = lambda B: (B, prob.H, prob.Y, prob.R, prob.Xf)  # noqa: E731
     C = estimate_covariance(prob.Xf)
-    B = C * prob.localization.matrix()
+    B = background_covariance(prob)
     analyses = {name: solve(*args_of(B)) for name, solve in SOLVERS.items()}
     ref = analyses['obs_cholesky']
 
@@ -119,7 +119,7 @@ def run_config(n, p, M, args):
            'localization/shared': lambda: C * prob.localization.matrix()}
     for name, solve in SOLVERS.items():
         fns[f'solve/{name}'] = lambda solve=solve: solve(*args_of(B))
-        fns[f'full/{name}'] = lambda solve=solve: solve(*args_of(estimate_covariance(prob.Xf) * prob.localization.matrix()))
+        fns[f'full/{name}'] = lambda solve=solve: solve(*args_of(background_covariance(prob)))
     timings = _measure(fns, args.repeats, args.warmup)
     speedup = {stage: {name: timings[f'{stage}/{name}']['median_s'] / timings[f'{stage}/obs_cholesky']['median_s']
                        for name in ('state_cholesky', 'state_lstsq')} for stage in ('solve', 'full')}

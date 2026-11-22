@@ -34,7 +34,7 @@ CORR_LENGTH, LOG_STD = 0.03, 0.5                  # prior tracer field: c = exp(
 VELOCITY_MEAN, VELOCITY_STD = 0.20, 0.02          # prior of the advection velocity (truth and members)
 OBS_EVERY, OBS_LOG_STD = 4, 0.10                  # observation network; log-space error (GSD = e^0.1)
 LOCALIZATION_RADIUS, TIME_RADIUS = 0.08, 0.5
-TIMES = np.round(np.arange(0.0, 2.0 + 1e-9, 0.25), 10)
+TIMES = np.linspace(0.0, 2.0, 9)                  # every 0.25
 T_SINGLE = 1.0
 
 
@@ -132,7 +132,7 @@ def _report(res):
     print('\nPart 2 - sequential cycle: forecast RMSE at each time, analysis RMSE in brackets')
     print('  time    noda      filter              smoother')
     c = res['cycle']
-    for t in res['setup']['times']:
+    for t in TIMES.tolist():
         row = [f"{c['noda']['forecast_rmse'][t]:.4f}" if t in c['noda']['forecast_rmse'] else '  -   ']
         for mode in ('filter', 'smoother'):
             f, a = c[mode]['forecast_rmse'].get(t), c[mode]['analysis_rmse'].get(t)
@@ -158,7 +158,7 @@ def _plot(res, path):
     ax1.plot(f['x'], f['forecast_mean'], color='tab:blue', label='forecast mean')
     ax1.plot(f['x'], f['analysis_mean'], color='tab:red', ls='--', label='analysis mean')
     ax1.plot(f['obs_x'], f['obs'], 'o', ms=3, color='tab:green', label='observations')
-    ax1.set(xlabel='x', ylabel='tracer', title=f"fields at t = {res['setup']['t_single']}")
+    ax1.set(xlabel='x', ylabel='tracer', title=f'fields at t = {T_SINGLE}')
     ax1.legend(fontsize=8)
     for mode in ('noda', 'filter', 'smoother'):
         ax2.plot(list(c[mode]['forecast_rmse']), list(c[mode]['forecast_rmse'].values()), marker='o', label=f'{mode} forecast')

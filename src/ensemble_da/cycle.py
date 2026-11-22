@@ -14,7 +14,6 @@ import numpy as np
 
 from .assimilate import assimilate_window
 from .observations import Observations
-from .transform import to_log
 
 MODES = ('noda', 'filter', 'smoother')
 
@@ -55,31 +54,20 @@ def plan_cycle(mode, times, window=0.0) -> list:
     if mode not in MODES:
         raise ValueError(f'mode must be one of {MODES} (got {mode!r})')
     times = [float(t) for t in times]
-    steps = []
-    if mode == 'smoother':
-        first, last = derive_windows(times, window)
-        steps += [CycleStep('forecast', times[f], source=times[f - 1], restart='forecast')
-                  for f in range(1, last[0] + 1)]
+
+    def chain(start, stop):                       # forecasts to times[start:stop], each from the previous one
+        return [CycleStep('forecast', times[f], source=times[f - 1], restart='forecast') for f in range(start, stop)]
+
+    if mode == 'noda':
+        return chain(1, len(times))
+    first, last = derive_windows(times, window) if mode == 'smoother' else (range(len(times)),) * 2
+    steps = chain(1, last[0] + 1)
     for t in range(len(times) - 1):
-        if mode == 'filter':
-            steps.append(CycleStep('analyze', times[t], window=(times[t],)))
-        elif mode == 'smoother':
-            neighbours = times[first[t]:t] + times[t + 1:last[t] + 1]
-            steps.append(CycleStep('analyze', times[t], window=tuple(neighbours + [times[t]])))
-        horizon_end = last[t + 1] + 1 if mode == 'smoother' else t + 2    # exclusive time index
-        for f in range(t + 1, horizon_end):
-            if f == t + 1:
-                restart = 'forecast' if mode == 'noda' else 'analysis'
-                steps.append(CycleStep('forecast', times[f], source=times[t], restart=restart))
-            else:
-                steps.append(CycleStep('forecast', times[f], source=times[f - 1], restart='forecast'))
+        neighbours = times[first[t]:t] + times[t + 1:last[t] + 1]
+        steps.append(CycleStep('analyze', times[t], window=tuple(neighbours + [times[t]])))
+        steps.append(CycleStep('forecast', times[t + 1], source=times[t], restart='analysis'))
+        steps += chain(t + 2, last[t + 1] + 1)
     return steps
-
-
-def _innovation_rms(ensemble, obs, transform):
-    mean = (to_log(ensemble, 'forecast') if transform == 'log' else ensemble).mean(axis=1)
-    y = to_log(obs.values, 'observations') if transform == 'log' else obs.values
-    return float(np.sqrt(np.mean((y - mean[obs.indices]) ** 2)))
 
 
 def run_cycle(forecast, initial_ensemble, times, observations, *, mode='filter', window=0.0,
@@ -105,13 +93,13 @@ def run_cycle(forecast, initial_ensemble, times, observations, *, mode='filter',
     rng = np.random.default_rng(rng)
     states = {times[0]: np.array(initial_ensemble, dtype=float)}   # stored states are always copies
     analyses, records = {}, []
-    for i, step in enumerate(plan):
+    for step in plan:
         if step.kind == 'analyze':
             obs = [observations.get(t, Observations.empty()) for t in step.window]
             res = assimilate_window([states[t] for t in step.window], obs, step.window,
                                     localization=localization, transform=transform, perturb=perturb, rng=rng)
             analyses[step.time] = res.analysis
-            records.append({'id': i, 'step': 'analyze', 'time': step.time, 'window': list(step.window),
+            records.append({'step': 'analyze', 'time': step.time, 'window': step.window,
                             'diagnostics': res.diagnostics})
         else:
             start = analyses[step.source] if step.restart == 'analysis' else states[step.source]
@@ -119,8 +107,5 @@ def run_cycle(forecast, initial_ensemble, times, observations, *, mode='filter',
             if out.shape != start.shape:
                 raise ValueError(f'forecast returned shape {out.shape}, expected {start.shape}')
             states[step.time] = out
-            rec = {'id': i, 'step': 'forecast', 'time': step.time, 'source': step.source, 'restart': step.restart}
-            if step.time in observations and observations[step.time].values.size:
-                rec['innovation_rms'] = _innovation_rms(out, observations[step.time], transform)
-            records.append(rec)
+            records.append({'step': 'forecast', 'time': step.time, 'source': step.source, 'restart': step.restart})
     return CycleResult(steps=records, analyses=analyses, forecasts=states)

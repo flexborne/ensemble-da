@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ensemble-da"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Model-independent ensemble Kalman filter and smoother analysis with covariance localization"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,6 +34,9 @@ bench = ["threadpoolctl"]
 
 [project.scripts]
 ensemble-da = "ensemble_da.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "ensemble_da.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
