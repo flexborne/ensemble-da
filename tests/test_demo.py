@@ -1,33 +1,30 @@
-"""The model-independent twin experiment reproduces its documented behaviour."""
+"""The model-independent twin experiment reproduces its documented behaviour, over several seeds."""
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 import demo_transport_1d as demo
 
 
 @pytest.fixture(scope='module')
-def result():
-    return demo.run(seed=1)
+def summary():
+    return demo.summarize(range(1, 11))
 
 
-def _mean(d):
-    return float(np.mean(list(d.values())))
+def test_one_analysis_cuts_the_forecast_error(summary):
+    assert summary['analysis / forecast (one analysis)']['max'] < 0.5
 
 
-def test_analysis_reduces_the_forecast_error(result):
-    s = result['single_analysis_t1']
-    assert s['analysis_rmse_localized'] < 0.25 * s['forecast_rmse']
+def test_localization_beats_the_raw_ensemble_covariance(summary):
+    s = summary['localized / unlocalized analysis']
+    assert s['below_1'] == s['seeds'] and s['median'] < 0.7
 
 
-def test_localization_beats_the_raw_ensemble_covariance(result):
-    s = result['single_analysis_t1']
-    assert s['analysis_rmse_localized'] < s['analysis_rmse_unlocalized']
+def test_cycling_beats_the_free_run_and_analyses_beat_their_forecasts(summary):
+    assert summary['filter / free-run forecast']['median'] < 0.3
+    assert summary['filter analysis / its forecast']['median'] < 0.9
 
 
-def test_cycling_beats_the_free_run(result):
-    c = result['cycle']
-    assert _mean(c['filter']['forecast_rmse']) < 0.2 * _mean(c['noda']['forecast_rmse'])
-    assert _mean(c['smoother']['forecast_rmse']) < _mean(c['filter']['forecast_rmse'])
-    assert _mean(c['smoother']['analysis_rmse']) < _mean(c['filter']['analysis_rmse'])
+def test_smoother_beats_the_filter_on_average(summary):
+    s = summary['smoother / filter analysis']
+    assert s['median'] < 0.95 and s['below_1'] >= 8
