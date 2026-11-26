@@ -7,7 +7,12 @@ abstract: >-
   It takes a forecast ensemble, observations, an observation operator and observation errors,
   and returns the analysis ensemble; forecast models are coupled through a function interface.
 authors:
-  - family-names: Alexander
+  - family-names: Shrubkovskyi
+    given-names: Oleksandr
+    orcid: "https://orcid.org/0000-0002-5153-9853"
+  - family-names: Kovalets
+    given-names: Ivan
+    orcid: "https://orcid.org/0000-0002-5553-3299"
 version: 0.1.0
 license: MIT
 repository-code: "https://github.com/flexborne/ensemble-da"

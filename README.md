@@ -160,6 +160,14 @@ python benchmarks/benchmark_analysis.py        # timing; see benchmarks/README.m
 | `reference.py` | `reference_analysis` — independent state-space solver for verification |
 | `cli.py` | `ensemble-da assimilate` |
 
+## Reference
+
+The package implements, independently of the forecast model, the analysis method of
+
+Kovalets I. V., Bezhenar R., Maderich V., Shrubkovsky O. (2026). Data assimilation for the POSEIDON-R
+compartment model applied to the reconstruction of ¹³⁷Cs in the Black Sea following the Chornobyl
+accident. *Computational Geosciences* 30(4), 74. https://doi.org/10.1007/s10596-026-10476-9
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Citation metadata: [CITATION.cff](CITATION.cff).

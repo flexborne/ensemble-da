@@ -161,6 +161,14 @@ python benchmarks/benchmark_analysis.py        # заміри часу; див. 
 | `reference.py` | `reference_analysis` — незалежний розв'язувач у просторі стану для верифікації |
 | `cli.py` | `ensemble-da assimilate` |
 
+## Першоджерело
+
+Пакет реалізує, незалежно від прогнозної моделі, метод аналізу зі статті
+
+Kovalets I. V., Bezhenar R., Maderich V., Shrubkovsky O. (2026). Data assimilation for the POSEIDON-R
+compartment model applied to the reconstruction of ¹³⁷Cs in the Black Sea following the Chornobyl
+accident. *Computational Geosciences* 30(4), 74. https://doi.org/10.1007/s10596-026-10476-9
+
 ## Ліцензія
 
 MIT — див. [LICENSE](LICENSE). Метадані для цитування: [CITATION.cff](CITATION.cff).
